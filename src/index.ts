@@ -3,32 +3,66 @@ import * as dotenv from "dotenv"
 dotenv.config()
 
 // Instantiate Discord client
-import { Client, Message } from "discord.js"
+import {
+  Client,
+  Message,
+  Channel,
+  ChannelManager,
+  PresenceResolvable,
+  Presence,
+} from "discord.js"
 const client = new Client()
 
-// Immutable store
-import { store, actions } from "./store"
-
-function sendMessageToDev() {
-  const devChannel =
-    store.getState().channels.find((c) => c.name === "dev").id || null
-
-  if (devChannel === null) {
-    console.error("Channel 'dev' not found.")
-  }
-}
-
 client.on("ready", () => {
+  client.user.setActivity(`Finns du bland oss?`)
+
   console.log(`Client is ready, connected as ${client.user.tag}.`)
-  console.log(client.channels)
-  store.dispatch({
-    type: actions.ACTION_CHANNELS_APPEND,
-    payload: client.channels,
-  })
 })
 
 client.on("message", (msg: Message) => {
-  console.log("Client received message...", msg.toJSON)
+  console.log("Client received message...", msg, msg.guild.presences)
+
+  if (msg.author.bot === false) {
+    if (msg.guild && msg.guild.presences) {
+      const presences = msg.guild.presences
+        .valueOf()
+        .find((p) => p.userID === msg.author.id)
+
+      if (presences) {
+        const activityAmongUs = presences.activities.find(
+          (a) => process.env["DISCORD_BOT_GAME_NAME"]
+        )
+
+        if (activityAmongUs) {
+          msg.channel.send(
+            `${msg.author.username} spelar ${activityAmongUs.name}.`
+          )
+        }
+      } else {
+        console.log(`Found no presences.`)
+      }
+    }
+  }
+
+  // const storedChannel: Channel = store
+  //   .getState()
+  //   .channels.find((c) => c.id === msg.channel.id)
+
+  // if (msg.channel === storedChannel.id) {
+  //   if (msg.cleanContent.toLowerCase() === "är du bland oss") {
+  //     msg.channel.send(`Jag är bland er.`)
+  //   }
+  // }
+
+  if (msg.channel.toJSON()["name"] === "dev") {
+    if (msg.author.bot === false) {
+      console.log("Channel is dev")
+
+      if (msg.cleanContent.toLowerCase() === "är boten här?") {
+        msg.channel.send("Aa.")
+      }
+    }
+  }
 })
 
 client
